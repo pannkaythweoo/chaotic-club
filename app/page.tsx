@@ -16,17 +16,20 @@ export default function LoginPage() {
       return;
     }
 
-    const { data: user, error } = await supabase
+    // ✅ FIX: avoid .single() crash
+    const { data: users, error } = await supabase
       .from("users")
       .select("*")
-      .eq("nickname", nickname)
-      .single();
+      .eq("nickname", nickname);
 
-    if (error && error.code !== "PGRST116") {
+    if (error) {
       alert(error.message);
       return;
     }
 
+    const user = users?.[0];
+
+    // 👤 EXISTING USER LOGIN
     if (user) {
       if (user.password !== password) {
         alert("Nickname already exists or wrong password");
@@ -38,6 +41,7 @@ export default function LoginPage() {
       return;
     }
 
+    // 🆕 NEW USER CREATE
     const { data: newUser, error: insertError } = await supabase
       .from("users")
       .insert({
@@ -110,7 +114,7 @@ export default function LoginPage() {
 
         </div>
 
-        {/* FOOTER TEXT */}
+        {/* FOOTER */}
         <p className="text-center text-xs text-gray-400 mt-6">
           Join the chaos ✨ Create or login instantly
         </p>
