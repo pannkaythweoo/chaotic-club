@@ -8,7 +8,6 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [preview, setPreview] = useState<string | null>(null);
 
-  // ✅ FIX: safe localStorage access
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -39,7 +38,6 @@ export default function Home() {
     if (!user) return;
 
     const url = await uploadImage(file);
-
     if (!url) return;
 
     await supabase
@@ -55,82 +53,70 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-rose-50 to-purple-100 px-4">
+    <main className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-purple-100 px-4 py-6">
 
-      <div className="backdrop-blur-xl bg-white/60 border border-white/40 shadow-2xl rounded-3xl p-8 w-full max-w-md">
+      {/* HEADER */}
+      <div className="flex items-center justify-between bg-white/60 backdrop-blur-xl border border-white/40 shadow-md rounded-2xl px-4 py-3">
 
-        {/* 👤 USER PROFILE */}
-        <div className="flex flex-col items-center mb-6">
-
-          <label className="relative cursor-pointer">
-
-            <div className="w-24 h-24 rounded-full bg-white/70 border-2 border-pink-300 overflow-hidden flex items-center justify-center shadow-md">
-
-              {preview || user?.avatar ? (
-                <img
-                  src={preview || user?.avatar}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-gray-400 text-xs">
-                  No Photo
-                </span>
-              )}
-
-            </div>
-
-            {/* hidden upload */}
-            <input
-              type="file"
-              className="hidden"
-              accept="image/*"
-              onChange={(e) =>
-                e.target.files && changeProfile(e.target.files[0])
-              }
-            />
-          </label>
-
-          <h2 className="mt-3 text-lg font-bold text-pink-600">
-            {user?.nickname || "Guest"}
-          </h2>
-
-          <p className="text-xs text-gray-500">
-            Tap photo to change
-          </p>
-        </div>
-
-        {/* TITLE */}
-        <h1 className="text-4xl font-bold text-pink-600 text-center">
-          Chaotic Club 🎀
+        {/* APP NAME */}
+        <h1 className="text-xl font-bold text-pink-600">
+          🎀 Chaotic Club
         </h1>
 
-        <p className="text-gray-600 mt-3 text-center">
-          Create chaos. Play together. Have fun 💫
-        </p>
+        {/* USER INFO */}
+        <label className="flex items-center gap-2 cursor-pointer">
 
-        {/* BUTTONS */}
-        <div className="mt-8 flex flex-col gap-4">
+          <span className="text-sm font-semibold text-gray-700">
+            {user?.nickname || "Guest"}
+          </span>
 
-          <Link href="/create">
-            <button className="w-full py-3 rounded-2xl bg-pink-400 hover:bg-pink-500 text-white font-semibold shadow-lg transition">
-              ✨ Create Club
-            </button>
-          </Link>
+          <div className="w-10 h-10 rounded-full border-2 border-pink-300 overflow-hidden bg-white flex items-center justify-center">
 
-          <Link href="/join">
-            <button className="w-full py-3 rounded-2xl bg-purple-300 hover:bg-purple-400 text-white font-semibold shadow-lg transition">
-              💌 Join Club
-            </button>
-          </Link>
+            {preview || user?.avatar ? (
+              <img
+                src={preview || user?.avatar}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-xs text-gray-400">👤</span>
+            )}
 
-        </div>
+          </div>
 
-        {/* FOOTER */}
-        <p className="text-xs text-gray-500 mt-6 text-center">
-          made for chaotic friends 💕
-        </p>
+          {/* change profile */}
+          <input
+            type="file"
+            className="hidden"
+            accept="image/*"
+            onChange={(e) =>
+              e.target.files && changeProfile(e.target.files[0])
+            }
+          />
+        </label>
+      </div>
+
+      {/* MAIN BUTTONS */}
+      <div className="mt-10 max-w-md mx-auto flex flex-col gap-5">
+
+        <Link href="/create">
+          <button className="w-full py-4 rounded-2xl bg-pink-400 hover:bg-pink-500 text-white font-semibold shadow-lg transition">
+            ✨ Create Club
+          </button>
+        </Link>
+
+        <Link href="/join">
+          <button className="w-full py-4 rounded-2xl bg-purple-300 hover:bg-purple-400 text-white font-semibold shadow-lg transition">
+            💌 Join Club
+          </button>
+        </Link>
 
       </div>
+
+      {/* FOOTER */}
+      <p className="text-xs text-gray-500 mt-10 text-center">
+        made for chaotic friends 💕
+      </p>
+
     </main>
   );
 }
