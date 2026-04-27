@@ -17,89 +17,100 @@ export default function CreatePage() {
   const router = useRouter();
 
   const [clubName, setClubName] = useState("");
-  const [nickname, setNickname] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-
-  const uploadImage = async (file: File) => {
-    const fileName = `${Date.now()}-${file.name}`;
-
-    const { error } = await supabase.storage
-      .from("avatars")
-      .upload(fileName, file);
-
-    if (error) {
-      console.log("UPLOAD ERROR:", error);
-      return "";
-    }
-
-    const { data } = supabase.storage
-      .from("avatars")
-      .getPublicUrl(fileName);
-
-    return data.publicUrl;
-  };
-
-  const handleImage = (file: File) => {
-    setFile(file);
-    setPreview(URL.createObjectURL(file));
-  };
+  const [loading, setLoading] = useState(false);
 
   const createRoom = async () => {
-    if (!clubName || !nickname) {
-      alert("Fill all fields");
+    if (!clubName) {
+      alert("Enter club name 🎀");
       return;
     }
 
-    const code = generateRoomCode();
+    const userStr = localStorage.getItem("user");
 
-    let avatarUrl = "";
-    if (file) {
-      avatarUrl = await uploadImage(file);
+    if (!userStr) {
+      alert("Please login again ❌");
+      router.push("/");
+      return;
     }
 
-    // 🔥 STEP 1: CREATE ROOM
-    const { error: roomError } = await supabase.from("rooms").insert({
-      id: code,
-      name: clubName,
-    });
+    const user = JSON.parse(userStr);
+
+    // ✅ verify user still exists in DB
+    const { data: dbUser } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!dbUser) {
+      localStorage.removeItem("user");
+      alert("User not found. Please login again ❌");
+      router.push("/");
+      return;
+    }
+
+    setLoading(true);
+
+    const roomId = generateRoomCode();
+
+    // 🏠 CREATE ROOM
+    const { error: roomError } = await supabase
+      .from("rooms")
+      .insert({
+        id: roomId,
+        name: clubName,
+      });
 
     if (roomError) {
-      alert("Room error: " + roomError.message);
+      alert(roomError.message);
+      setLoading(false);
       return;
     }
 
-    // 🔥 STEP 2: ADD CREATOR AS MEMBER
+    // 👥 ADD CREATOR (room member)
     const { error: memberError } = await supabase
       .from("room_members")
-      .insert({
-        room_id: code,
-        nickname,
-        avatar: avatarUrl || "",
-      });
+      .upsert(
+        {
+          room_id: roomId,
+          user_id: user.id,
+          nickname: user.nickname,
+          avatar: user.avatar || "",
+          is_creator: true,
+        },
+        {
+          onConflict: "room_id,user_id",
+        }
+      );
 
     if (memberError) {
-      alert("Member error: " + memberError.message);
+      alert(memberError.message);
+      setLoading(false);
       return;
     }
 
-    // ✅ STEP 3: CREATE ALBUM (FIXED LOCATION)
+    // 📸 CREATE ALBUM (with avatar)
     const { error: albumError } = await supabase
       .from("albums")
-      .upsert({
-        room_id: code,
-        member_name: nickname,
-      });
+      .upsert(
+        {
+          room_id: roomId,
+          user_id: user.id,
+          member_name: user.nickname,
+          avatar: user.avatar || "",
+        },
+        {
+          onConflict: "room_id,user_id",
+        }
+      );
 
     if (albumError) {
       console.log("Album error:", albumError);
     }
 
-    // ✅ STEP 4: SAVE NICKNAME
-    localStorage.setItem("nickname", nickname);
+    setLoading(false);
 
-    // 🔥 STEP 5: GO TO ROOM
-    router.push(`/room/${code}`);
+    router.push(`/room/${roomId}`);
   };
 
   return (
@@ -123,52 +134,18 @@ export default function CreatePage() {
             </label>
 
             <input
-              className="w-full mt-2 p-4 rounded-2xl bg-white/90 border-2 border-pink-400 text-gray-800 font-semibold text-lg placeholder-gray-400"
+              className="w-full mt-2 p-4 rounded-2xl bg-white/90 border-2 border-pink-400 text-gray-800 font-semibold text-lg"
               placeholder="Enter club name"
               onChange={(e) => setClubName(e.target.value)}
             />
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-purple-500">
-              Your Nickname
-            </label>
-
-            <input
-              className="w-full mt-2 p-3 rounded-xl bg-white/80 border border-purple-200 text-gray-800 placeholder-gray-500"
-              placeholder="Enter nickname"
-              onChange={(e) => setNickname(e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-col items-center">
-            <label className="text-sm text-gray-600 mb-2">
-              Profile Picture
-            </label>
-
-            <label className="w-28 h-28 border-2 border-dashed border-pink-300 rounded-2xl flex items-center justify-center cursor-pointer overflow-hidden bg-white/60">
-              {preview ? (
-                <img src={preview} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-xs text-gray-500">Upload</span>
-              )}
-
-              <input
-                type="file"
-                className="hidden"
-                accept="image/*"
-                onChange={(e) =>
-                  e.target.files && handleImage(e.target.files[0])
-                }
-              />
-            </label>
-          </div>
-
           <button
             onClick={createRoom}
-            className="py-3 rounded-2xl bg-pink-400 hover:bg-pink-500 text-white font-semibold shadow-lg"
+            disabled={loading}
+            className="py-3 rounded-2xl bg-pink-400 hover:bg-pink-500 text-white font-semibold shadow-lg disabled:opacity-50"
           >
-            ✨ Create Club
+            {loading ? "Creating..." : "✨ Create Club"}
           </button>
 
         </div>

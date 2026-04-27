@@ -9,10 +9,32 @@ export default function Home() {
   const [preview, setPreview] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    const init = async () => {
+      if (typeof window === "undefined") return;
 
-    const u = localStorage.getItem("user");
-    setUser(u ? JSON.parse(u) : null);
+      const u = localStorage.getItem("user");
+
+      if (!u) return;
+
+      const parsed = JSON.parse(u);
+
+      // 🧠 NEW FIX: verify user still exists in DB
+      const { data: dbUser } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", parsed.id)
+        .maybeSingle();
+
+      if (!dbUser) {
+        localStorage.removeItem("user");
+        setUser(null);
+        return;
+      }
+
+      setUser(dbUser);
+    };
+
+    init();
   }, []);
 
   const uploadImage = async (file: File) => {
@@ -58,12 +80,10 @@ export default function Home() {
       {/* HEADER */}
       <div className="flex items-center justify-between bg-white/60 backdrop-blur-xl border border-white/40 shadow-md rounded-2xl px-4 py-3">
 
-        {/* APP NAME */}
         <h1 className="text-xl font-bold text-pink-600">
           🎀 Chaotic Club
         </h1>
 
-        {/* USER INFO */}
         <label className="flex items-center gap-2 cursor-pointer">
 
           <span className="text-sm font-semibold text-gray-700">
@@ -83,7 +103,6 @@ export default function Home() {
 
           </div>
 
-          {/* change profile */}
           <input
             type="file"
             className="hidden"
@@ -95,7 +114,7 @@ export default function Home() {
         </label>
       </div>
 
-      {/* MAIN BUTTONS */}
+      {/* BUTTONS */}
       <div className="mt-10 max-w-md mx-auto flex flex-col gap-5">
 
         <Link href="/create">
@@ -112,7 +131,6 @@ export default function Home() {
 
       </div>
 
-      {/* FOOTER */}
       <p className="text-xs text-gray-500 mt-10 text-center">
         made for chaotic friends 💕
       </p>

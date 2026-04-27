@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation"; // ✅ added router
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function RoomPage() {
   const params = useParams();
-  const router = useRouter(); // ✅ added
+  const router = useRouter();
   const roomId = params.id as string;
 
   const [room, setRoom] = useState<any>(null);
@@ -19,19 +19,40 @@ export default function RoomPage() {
         .from("rooms")
         .select("*")
         .eq("id", roomId)
-        .single();
+        .maybeSingle();
+
+      if (!roomData) {
+        alert("Room not found ❌");
+        router.push("/home");
+        return;
+      }
+
+      setRoom(roomData);
 
       const { data: memberData } = await supabase
         .from("room_members")
         .select("*")
         .eq("room_id", roomId);
 
-      setRoom(roomData);
-      setMembers(memberData || []);
+      const validMembers = [];
+
+      if (memberData) {
+        for (const m of memberData) {
+          const { data: dbUser } = await supabase
+            .from("users")
+            .select("id")
+            .eq("id", m.user_id)
+            .maybeSingle();
+
+          if (dbUser) validMembers.push(m);
+        }
+      }
+
+      setMembers(validMembers);
     };
 
     if (roomId) load();
-  }, [roomId]);
+  }, [roomId, router]);
 
   const games = [
     "Truth or Dare",
@@ -42,7 +63,6 @@ export default function RoomPage() {
     "Snap Collection",
   ];
 
-  // ✅ handle click
   const handleClick = (game: string) => {
     if (game === "Snap Collection") {
       router.push(`/room/${roomId}/snap`);
@@ -52,11 +72,12 @@ export default function RoomPage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-purple-100 px-4 py-6">
 
-      {/* HEADER */}
+      {/* 🎀 HEADER (RESTORED ORIGINAL LAYOUT) */}
       <div className="bg-white/70 backdrop-blur-xl border border-white/40 p-5 rounded-3xl shadow-xl">
 
         <div className="flex justify-between items-start">
 
+          {/* LEFT SIDE */}
           <div>
             <h1 className="text-xl font-bold text-pink-600">
               🎀 {room?.name || "Loading..."}
@@ -67,6 +88,7 @@ export default function RoomPage() {
             </p>
           </div>
 
+          {/* RIGHT SIDE */}
           <div className="text-right">
             <p className="text-xs text-gray-500">Room Code</p>
 
@@ -85,13 +107,39 @@ export default function RoomPage() {
         </div>
       </div>
 
+      {/* 👥 MEMBERS OUTSIDE BOX */}
+      <div className="mt-5 flex flex-wrap gap-3">
+
+        {members.map((m) => (
+          <div
+            key={m.id}
+            className="flex items-center gap-2 bg-white/60 backdrop-blur-xl px-3 py-2 rounded-full border border-white/40 shadow-sm"
+          >
+            <div className="w-6 h-6 rounded-full bg-pink-200 flex items-center justify-center text-xs overflow-hidden">
+              {m.avatar ? (
+                <img src={m.avatar} className="w-full h-full object-cover" />
+              ) : (
+                "👤"
+              )}
+            </div>
+
+            <span className="text-sm text-pink-700 font-medium">
+              {m.nickname}
+            </span>
+
+            {m.is_creator && <span>👑</span>}
+          </div>
+        ))}
+
+      </div>
+
       {/* GAME GRID */}
       <div className="mt-6 grid grid-cols-2 gap-4">
 
         {games.map((game) => (
           <div
             key={game}
-            onClick={() => handleClick(game)} // ✅ added
+            onClick={() => handleClick(game)}
             className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-2xl p-6 text-center shadow-md hover:scale-105 transition cursor-pointer"
           >
             <p className="text-pink-600 font-semibold">

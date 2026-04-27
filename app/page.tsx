@@ -1,125 +1,161 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
 
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!nickname || !password) {
-      alert("Fill all fields");
+      alert("Fill everything 💕");
       return;
     }
 
-    // ✅ FIX: avoid .single() crash
-    const { data: users, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("nickname", nickname);
+    try {
+      setLoading(true);
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
+      // 🔍 check if user exists
+      const { data: existingUser, error: fetchError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("nickname", nickname)
+        .maybeSingle();
 
-    const user = users?.[0];
-
-    // 👤 EXISTING USER LOGIN
-    if (user) {
-      if (user.password !== password) {
-        alert("Nickname already exists or wrong password");
+      if (fetchError) {
+        console.error(fetchError);
+        alert("Database error ❌");
         return;
       }
 
-      localStorage.setItem("user", JSON.stringify(user));
+      // 🆕 CREATE USER
+      if (!existingUser) {
+        const { data: newUser, error: insertError } = await supabase
+          .from("users")
+          .insert({
+            nickname,
+            password,
+          })
+          .select()
+          .single();
+
+        if (insertError || !newUser) {
+          console.error(insertError);
+          alert("Failed to create user ❌");
+          return;
+        }
+
+        // 🧠 SAVE + SAFE VERIFY
+        const { data: dbUser } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", newUser.id)
+          .maybeSingle();
+
+        if (!dbUser) {
+          alert("User creation failed ❌");
+          return;
+        }
+
+        localStorage.setItem("user", JSON.stringify(dbUser));
+        router.push("/home");
+        return;
+      }
+
+      // 🔐 PASSWORD CHECK
+      if (existingUser.password !== password) {
+        alert("Username already exists or Wrong password ❌");
+        return;
+      }
+
+      // 🧠 SAFETY CHECK (IMPORTANT FIX)
+      const { data: dbUser } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", existingUser.id)
+        .maybeSingle();
+
+      if (!dbUser) {
+        localStorage.removeItem("user");
+        alert("User no longer exists. Please sign up again ❌");
+        return;
+      }
+
+      // ✅ LOGIN SUCCESS
+      localStorage.setItem("user", JSON.stringify(dbUser));
+
       router.push("/home");
-      return;
+
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong ❌");
+    } finally {
+      setLoading(false);
     }
-
-    // 🆕 NEW USER CREATE
-    const { data: newUser, error: insertError } = await supabase
-      .from("users")
-      .insert({
-        nickname,
-        password,
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      alert(insertError.message);
-      return;
-    }
-
-    localStorage.setItem("user", JSON.stringify(newUser));
-    router.push("/home");
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-rose-50 to-purple-100 px-4">
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-200 via-rose-100 to-purple-200 px-4">
 
       {/* CARD */}
-      <div className="w-full max-w-md bg-white/70 backdrop-blur-xl border border-white/40 shadow-2xl rounded-3xl p-8">
+      <div className="w-full max-w-sm bg-white/80 backdrop-blur-xl rounded-3xl p-7 shadow-2xl border border-pink-100">
 
-        {/* HEADER */}
-        <h1 className="text-3xl font-bold text-center text-pink-600">
+        {/* TITLE */}
+        <h1 className="text-3xl font-extrabold text-center text-pink-500 mb-2">
           🎀 Chaotic Club
         </h1>
 
-        <p className="text-center text-gray-500 text-sm mt-2">
-          Login or create your identity ✨
+        <p className="text-center text-sm text-gray-500 mb-6">
+          enter your chaotic world 💕
         </p>
 
-        <div className="mt-6 flex flex-col gap-5">
+        {/* INPUTS */}
+        <div className="flex flex-col gap-4">
 
-          {/* NICKNAME */}
-          <div>
-            <label className="text-sm font-semibold text-pink-600">
-              Nickname 💕
-            </label>
+          <input
+            placeholder="Nickname 💖"
+            className="w-full px-4 py-3 rounded-xl bg-pink-50 border border-pink-200
+                       text-gray-800 placeholder-gray-400
+                       focus:outline-none focus:ring-2 focus:ring-pink-300"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+          />
 
-            <input
-              className="w-full mt-2 p-4 rounded-2xl bg-white/80 border-2 border-pink-300 text-gray-800 font-medium focus:outline-pink-400 focus:ring-2 focus:ring-pink-200 transition"
-              placeholder="Enter your nickname"
-              onChange={(e) => setNickname(e.target.value)}
-            />
-          </div>
-
-          {/* PASSWORD */}
-          <div>
-            <label className="text-sm font-semibold text-purple-600">
-              Password 🔒
-            </label>
-
-            <input
-              type="password"
-              className="w-full mt-2 p-4 rounded-2xl bg-white/80 border-2 border-purple-200 text-gray-800 font-medium focus:outline-purple-400 focus:ring-2 focus:ring-purple-200 transition"
-              placeholder="Enter your password"
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          {/* BUTTON */}
-          <button
-            onClick={handleLogin}
-            className="mt-2 py-3 rounded-2xl bg-gradient-to-r from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 text-white font-bold shadow-lg transition transform hover:scale-[1.02]"
-          >
-            💫 Enter Club World
-          </button>
+          <input
+            type="password"
+            placeholder="Password 🔒"
+            className="w-full px-4 py-3 rounded-xl bg-pink-50 border border-pink-200
+                       text-gray-800 placeholder-gray-400
+                       focus:outline-none focus:ring-2 focus:ring-pink-300"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
 
         </div>
 
+        {/* BUTTON */}
+        <button
+          onClick={handleLogin}
+          disabled={loading}
+          className="w-full mt-6 py-3 rounded-xl bg-gradient-to-r from-pink-400 to-rose-400
+                     hover:scale-[1.03] active:scale-[0.98]
+                     text-white font-semibold shadow-lg transition-all"
+        >
+          {loading ? "Entering..." : "Enter Club 💌"}
+        </button>
+
         {/* FOOTER */}
-        <p className="text-center text-xs text-gray-400 mt-6">
-          Join the chaos ✨ Create or login instantly
+        <p className="text-xs text-center mt-5 text-gray-500">
+          new user = auto sign up ✨
         </p>
 
       </div>
+
     </main>
   );
 }

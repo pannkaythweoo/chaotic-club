@@ -13,12 +13,33 @@ export default function SnapPage() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
+      // 1️⃣ get albums
+      const { data: albumData } = await supabase
         .from("albums")
         .select("*")
         .eq("room_id", roomId);
 
-      setAlbums(data || []);
+      if (!albumData) return;
+
+      // 2️⃣ fix missing avatars by fetching from users table
+      const enriched = await Promise.all(
+        albumData.map(async (a) => {
+          if (a.avatar) return a;
+
+          const { data: user } = await supabase
+            .from("users")
+            .select("avatar")
+            .eq("id", a.user_id)
+            .maybeSingle();
+
+          return {
+            ...a,
+            avatar: user?.avatar || "",
+          };
+        })
+      );
+
+      setAlbums(enriched);
     };
 
     if (roomId) load();
@@ -31,24 +52,38 @@ export default function SnapPage() {
         Snap Collection 📸
       </h1>
 
-      {/* ALBUM GRID */}
+      {/* GRID */}
       <div className="grid grid-cols-2 gap-4">
 
         {albums.map((a) => (
           <div
             key={a.id}
-            onClick={() =>
-              router.push(`/room/${roomId}/snap/${a.id}`)
-            }
+            onClick={() => router.push(`/room/${roomId}/snap/${a.id}`)}
             className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-2xl p-6 text-center shadow-md hover:scale-105 transition cursor-pointer"
           >
-            <div className="w-20 h-20 mx-auto rounded-full bg-pink-200 flex items-center justify-center text-pink-600 font-bold text-xl">
-              {a.member_name?.[0]?.toUpperCase()}
+
+            {/* PROFILE PICTURE */}
+            <div className="w-20 h-20 mx-auto rounded-full overflow-hidden border-2 border-pink-300 bg-pink-100 flex items-center justify-center">
+
+              {a.avatar ? (
+                <img
+                  src={a.avatar}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <img
+                  src="/default-avatar.png"
+                  className="w-full h-full object-cover"
+                />
+              )}
+
             </div>
 
+            {/* NAME */}
             <p className="mt-2 text-pink-600 font-semibold">
               {a.member_name}
             </p>
+
           </div>
         ))}
 

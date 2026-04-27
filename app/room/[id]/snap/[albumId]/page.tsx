@@ -10,13 +10,11 @@ export default function AlbumPage() {
 
   const [album, setAlbum] = useState<any>(null);
   const [photos, setPhotos] = useState<any[]>([]);
-  const [file, setFile] = useState<File | null>(null);
-  const [nickname, setNickname] = useState("");
+  const [user, setUser] = useState<any>(null);
 
-  // ✅ FIX: localStorage only in browser
   useEffect(() => {
-    const name = localStorage.getItem("nickname") || "";
-    setNickname(name);
+    const u = localStorage.getItem("user");
+    if (u) setUser(JSON.parse(u));
   }, []);
 
   useEffect(() => {
@@ -41,9 +39,9 @@ export default function AlbumPage() {
     setPhotos(photoData || []);
   };
 
-  // ✅ FIXED UPLOAD (device upload like profile picture)
-  const uploadPhoto = async () => {
-    if (!file) return;
+  // 📸 UPLOAD
+  const uploadPhoto = async (file: File) => {
+    if (!file || !user) return;
 
     const fileName = `${Date.now()}-${file.name}`;
 
@@ -63,15 +61,15 @@ export default function AlbumPage() {
     await supabase.from("photos").insert({
       album_id: albumId,
       image_url: data.publicUrl,
-      uploaded_by: nickname,
+      uploaded_by: user.id, // ✅ FIXED
     });
 
-    setFile(null);
     load();
   };
 
+  // ❌ DELETE
   const deletePhoto = async (photo: any) => {
-    if (photo.uploaded_by !== nickname) {
+    if (photo.uploaded_by !== user.id) {
       alert("Only uploader can delete 😤");
       return;
     }
@@ -83,46 +81,43 @@ export default function AlbumPage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-purple-100 p-6">
 
-      {/* HEADER */}
-      <h1 className="text-xl font-bold text-pink-600 mb-2">
-        {album?.member_name}'s Album 💕
-      </h1>
+      <div className="bg-white/80 border border-pink-200 rounded-2xl p-4 shadow-md mb-4">
+        <h1 className="text-xl font-bold text-pink-600">
+          💕 {album?.member_name}'s Album
+        </h1>
+        <p className="text-sm text-gray-600">
+          Share memories with your club ✨
+        </p>
+      </div>
 
-      {/* UPLOAD (FIXED LIKE PROFILE UPLOAD STYLE) */}
-      <div className="flex gap-3 mb-4 items-center">
-
-        <label className="px-4 py-2 bg-white rounded-xl border border-pink-300 cursor-pointer">
-          📤 Choose Photo
+      {/* ADD PHOTO */}
+      <div className="mb-5">
+        <label className="inline-block px-4 py-3 bg-pink-400 text-white rounded-xl cursor-pointer font-semibold shadow">
+          📸 Add Photo
           <input
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) uploadPhoto(file);
+            }}
           />
         </label>
-
-        <button
-          onClick={uploadPhoto}
-          className="px-4 py-2 bg-pink-400 text-white rounded-xl"
-        >
-          Upload
-        </button>
-
       </div>
 
-      {/* PHOTOS */}
+      {/* GRID */}
       <div className="grid grid-cols-3 gap-3">
-
         {photos.map((p) => (
           <div key={p.id} className="relative group">
 
             <img
               src={p.image_url}
-              className="rounded-xl w-full h-28 object-cover"
+              className="rounded-xl w-full h-28 object-cover shadow"
             />
 
             {/* DELETE */}
-            {p.uploaded_by === nickname && (
+            {user && p.uploaded_by === user.id && (
               <button
                 onClick={() => deletePhoto(p)}
                 className="absolute top-1 right-1 bg-red-500 text-white text-xs px-2 rounded opacity-0 group-hover:opacity-100"
@@ -131,19 +126,18 @@ export default function AlbumPage() {
               </button>
             )}
 
-            {/* DOWNLOAD BUTTON */}
+            {/* DOWNLOAD */}
             <a
               href={p.image_url}
-              download
               target="_blank"
-              className="absolute bottom-1 right-1 bg-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100"
+              download
+              className="absolute bottom-1 right-1 bg-white text-xs px-2 py-1 rounded shadow opacity-0 group-hover:opacity-100"
             >
               ⬇
             </a>
 
           </div>
         ))}
-
       </div>
 
     </main>

@@ -8,79 +8,91 @@ export default function JoinPage() {
   const router = useRouter();
 
   const [roomId, setRoomId] = useState("");
-  const [nickname, setNickname] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-
-  const handleImage = (file: File) => {
-    setFile(file);
-    setPreview(URL.createObjectURL(file));
-  };
-
-  const uploadImage = async (file: File) => {
-    const fileName = `${Date.now()}-${file.name}`;
-
-    const { error } = await supabase.storage
-      .from("avatars")
-      .upload(fileName, file);
-
-    if (error) {
-      console.log(error);
-      return null;
-    }
-
-    const { data } = supabase.storage
-      .from("avatars")
-      .getPublicUrl(fileName);
-
-    return data.publicUrl;
-  };
+  const [loading, setLoading] = useState(false);
 
   const joinRoom = async () => {
-    if (!roomId || !nickname) {
-      alert("Please enter club code and nickname");
+    if (!roomId) {
+      alert("Please enter club code 💌");
       return;
     }
 
     const code = roomId.toUpperCase();
+    setLoading(true);
 
-    let avatarUrl = "";
+    // 🔍 STEP 1: check room exists
+    const { data: room, error } = await supabase
+      .from("rooms")
+      .select("*")
+      .eq("id", code)
+      .maybeSingle();
 
-    if (file) {
-      const uploaded = await uploadImage(file);
-      if (uploaded) avatarUrl = uploaded;
-    }
-
-    // 1️⃣ ADD MEMBER
-    const { error: memberError } = await supabase
-      .from("room_members")
-      .insert({
-        room_id: code,
-        nickname,
-        avatar: avatarUrl,
-      });
-
-    if (memberError) {
-      alert("Join error: " + memberError.message);
+    if (error) {
+      console.error(error);
+      setLoading(false);
       return;
     }
 
-    // 2️⃣ CREATE ALBUM (ONLY IF NOT EXISTS)
+    if (!room) {
+      alert("Wrong Club Code ❌");
+      setLoading(false);
+      return;
+    }
+
+    // 👤 GET USER
+    const userStr = localStorage.getItem("user");
+
+    if (!userStr) {
+      alert("Please login again ❌");
+      router.push("/");
+      return;
+    }
+
+    const user = JSON.parse(userStr);
+
+    // 🧠 IMPORTANT FIX: prevent duplicate members
+    const { error: memberError } = await supabase
+      .from("room_members")
+      .upsert(
+        {
+          room_id: code,
+          user_id: user.id,
+          nickname: user.nickname,
+          avatar: user.avatar || "",
+          is_creator: false,
+        },
+        {
+          onConflict: "room_id,user_id",
+        }
+      );
+
+    if (memberError) {
+      console.error(memberError);
+      alert("Failed to join room ❌");
+      setLoading(false);
+      return;
+    }
+
+    // 📸 ENSURE ALBUM EXISTS (WITH AVATAR FIX)
     const { error: albumError } = await supabase
       .from("albums")
-      .upsert({
-        room_id: code,
-        member_name: nickname,
-      });
+      .upsert(
+        {
+          room_id: code,
+          user_id: user.id,
+          member_name: user.nickname,
+          avatar: user.avatar || "",
+        },
+        {
+          onConflict: "room_id,user_id",
+        }
+      );
 
     if (albumError) {
       console.log("Album error:", albumError);
     }
 
-    // 3️⃣ SAVE LOCAL USER INFO
-    localStorage.setItem("nickname", nickname);
+    setLoading(false);
 
-    // 4️⃣ GO TO ROOM
     router.push(`/room/${code}`);
   };
 
@@ -97,73 +109,32 @@ export default function JoinPage() {
           Enter the chaos room code 🎮
         </p>
 
-        <div className="mt-6 flex flex-col gap-5">
+        {/* INPUT */}
+        <div className="mt-6">
 
-          {/* CLUB CODE */}
-          <div>
-            <label className="text-sm font-semibold text-purple-600">
-              Club Code ⭐
-            </label>
-            <input
-              className="w-full mt-1 p-3 rounded-xl bg-white/80 border border-purple-300 text-gray-800 placeholder-gray-500 focus:outline-purple-400"
-              placeholder="Enter club code"
-              onChange={(e) => setRoomId(e.target.value)}
-            />
-          </div>
+          <label className="text-sm font-semibold text-purple-600">
+            Club Code ⭐
+          </label>
 
-          {/* NICKNAME */}
-          <div>
-            <label className="text-sm font-semibold text-pink-500">
-              Your Nickname 👤
-            </label>
-            <input
-              className="w-full mt-1 p-3 rounded-xl bg-white/80 border border-pink-200 text-gray-800 placeholder-gray-500 focus:outline-pink-400"
-              placeholder="Enter your nickname"
-              onChange={(e) => setNickname(e.target.value)}
-            />
-          </div>
-
-          {/* PROFILE PICTURE */}
-          <div className="flex flex-col items-center">
-            <label className="text-sm font-semibold text-gray-600 mb-2">
-              Profile Picture 📸
-            </label>
-
-            <label className="w-28 h-28 border-2 border-dashed border-purple-300 rounded-2xl flex items-center justify-center cursor-pointer overflow-hidden bg-white/60 hover:bg-white/80 transition">
-              {preview ? (
-                <img
-                  src={preview}
-                  alt="avatar"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-xs text-gray-500 text-center px-2">
-                  Tap to upload
-                </span>
-              )}
-
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) =>
-                  e.target.files && handleImage(e.target.files[0])
-                }
-              />
-            </label>
-          </div>
-
-          {/* BUTTON */}
-          <button
-            onClick={joinRoom}
-            className="mt-2 py-3 rounded-2xl bg-purple-400 hover:bg-purple-500 text-white font-semibold shadow-lg transition"
-          >
-            💫 Join Club
-          </button>
+          <input
+            className="w-full mt-2 p-4 rounded-2xl bg-white/80 border-2 border-purple-300 text-gray-800 font-semibold text-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+            placeholder="Enter club code"
+            onChange={(e) => setRoomId(e.target.value)}
+          />
 
         </div>
 
+        {/* BUTTON */}
+        <button
+          onClick={joinRoom}
+          disabled={loading}
+          className="w-full mt-6 py-3 rounded-2xl bg-purple-400 hover:bg-purple-500 text-white font-semibold shadow-lg disabled:opacity-50"
+        >
+          {loading ? "Joining..." : "💫 Join Club"}
+        </button>
+
       </div>
+
     </main>
   );
 }
