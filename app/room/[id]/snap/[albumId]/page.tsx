@@ -61,20 +61,39 @@ export default function AlbumPage() {
     await supabase.from("photos").insert({
       album_id: albumId,
       image_url: data.publicUrl,
-      uploaded_by: user.id, // ✅ FIXED
+      uploaded_by: user.id,
     });
 
     load();
   };
 
-  // ❌ DELETE
+  // ❌ DELETE (UPDATED)
   const deletePhoto = async (photo: any) => {
+    if (!user) return;
+
+    // ❌ not uploader
     if (photo.uploaded_by !== user.id) {
-      alert("Only uploader can delete 😤");
+      alert("You can't delete this photo ❌");
       return;
     }
 
-    await supabase.from("photos").delete().eq("id", photo.id);
+    // ⚠️ confirmation
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this photo?"
+    );
+
+    if (!confirmDelete) return;
+
+    const { error } = await supabase
+      .from("photos")
+      .delete()
+      .eq("id", photo.id);
+
+    if (error) {
+      alert("Delete failed ❌");
+      return;
+    }
+
     load();
   };
 

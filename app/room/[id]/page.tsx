@@ -67,6 +67,11 @@ export default function RoomPage() {
     if (game === "Snap Collection") {
       router.push(`/room/${roomId}/snap`);
     }
+
+    if (game === "Decision Maker") {
+    router.push(`/room/${roomId}/decision`);
+  }
+
   };
 
   return (
