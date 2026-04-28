@@ -3,40 +3,26 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const router = useRouter();
 
+  // ✅ Load user from localStorage
   useEffect(() => {
-    const init = async () => {
-      if (typeof window === "undefined") return;
+    const u = localStorage.getItem("user");
 
-      const u = localStorage.getItem("user");
+    if (!u) {
+      router.push("/login");
+      return;
+    }
 
-      if (!u) return;
-
-      const parsed = JSON.parse(u);
-
-      // 🧠 NEW FIX: verify user still exists in DB
-      const { data: dbUser } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", parsed.id)
-        .maybeSingle();
-
-      if (!dbUser) {
-        localStorage.removeItem("user");
-        setUser(null);
-        return;
-      }
-
-      setUser(dbUser);
-    };
-
-    init();
+    setUser(JSON.parse(u));
   }, []);
 
+  // ✅ Upload image to Supabase storage
   const uploadImage = async (file: File) => {
     const fileName = `${Date.now()}-${file.name}`;
 
@@ -56,6 +42,7 @@ export default function Home() {
     return data.publicUrl;
   };
 
+  // ✅ Change profile picture
   const changeProfile = async (file: File) => {
     if (!user) return;
 
@@ -67,54 +54,74 @@ export default function Home() {
       .update({ avatar: url })
       .eq("id", user.id);
 
-    const updated = { ...user, avatar: url };
+    const updatedUser = { ...user, avatar: url };
 
-    localStorage.setItem("user", JSON.stringify(updated));
-    setUser(updated);
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+    setUser(updatedUser);
     setPreview(url);
+  };
+
+  // ✅ Logout
+  const logout = () => {
+    localStorage.removeItem("user");
+    router.push("/login");
   };
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-purple-100 px-4 py-6">
 
-      {/* HEADER */}
+      {/* 🎀 HEADER */}
       <div className="flex items-center justify-between bg-white/60 backdrop-blur-xl border border-white/40 shadow-md rounded-2xl px-4 py-3">
 
+        {/* APP NAME */}
         <h1 className="text-xl font-bold text-pink-600">
           🎀 Chaotic Club
         </h1>
 
-        <label className="flex items-center gap-2 cursor-pointer">
+        {/* USER SECTION */}
+        <div className="flex items-center gap-3">
 
           <span className="text-sm font-semibold text-gray-700">
-            {user?.nickname || "Guest"}
+            {user?.nickname}
           </span>
 
-          <div className="w-10 h-10 rounded-full border-2 border-pink-300 overflow-hidden bg-white flex items-center justify-center">
+          {/* Avatar */}
+          <label className="cursor-pointer">
+            <div className="w-10 h-10 rounded-full border-2 border-pink-300 overflow-hidden bg-white flex items-center justify-center">
 
-            {preview || user?.avatar ? (
-              <img
-                src={preview || user?.avatar}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span className="text-xs text-gray-400">👤</span>
-            )}
+              {preview || user?.avatar ? (
+                <img
+                  src={preview || user?.avatar}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-xs text-gray-400">👤</span>
+              )}
 
-          </div>
+            </div>
 
-          <input
-            type="file"
-            className="hidden"
-            accept="image/*"
-            onChange={(e) =>
-              e.target.files && changeProfile(e.target.files[0])
-            }
-          />
-        </label>
+            <input
+              type="file"
+              className="hidden"
+              accept="image/*"
+              onChange={(e) =>
+                e.target.files && changeProfile(e.target.files[0])
+              }
+            />
+          </label>
+
+          {/* Logout */}
+          <button
+            onClick={logout}
+            className="text-xs text-pink-500 hover:underline"
+          >
+            logout
+          </button>
+
+        </div>
       </div>
 
-      {/* BUTTONS */}
+      {/* 🎮 MAIN BUTTONS */}
       <div className="mt-10 max-w-md mx-auto flex flex-col gap-5">
 
         <Link href="/create">
@@ -131,6 +138,7 @@ export default function Home() {
 
       </div>
 
+      {/* 💕 FOOTER */}
       <p className="text-xs text-gray-500 mt-10 text-center">
         made for chaotic friends 💕
       </p>
