@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 
 export default function RoomPage() {
   const params = useParams();
-  const router = useRouter();
+  const router = useRouter(); // ✅ THIS is where it comes from
   const roomId = params.id as string;
 
   const [room, setRoom] = useState<any>(null);
@@ -69,20 +69,18 @@ export default function RoomPage() {
     }
 
     if (game === "Decision Maker") {
-    router.push(`/room/${roomId}/decision`);
-  }
-
+      router.push(`/room/${roomId}/decision`);
+    }
   };
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-purple-100 px-4 py-6">
 
-      {/* 🎀 HEADER (RESTORED ORIGINAL LAYOUT) */}
+      {/* 🎀 HEADER */}
       <div className="bg-white/70 backdrop-blur-xl border border-white/40 p-5 rounded-3xl shadow-xl">
-
         <div className="flex justify-between items-start">
 
-          {/* LEFT SIDE */}
+          {/* LEFT */}
           <div>
             <h1 className="text-xl font-bold text-pink-600">
               🎀 {room?.name || "Loading..."}
@@ -93,7 +91,7 @@ export default function RoomPage() {
             </p>
           </div>
 
-          {/* RIGHT SIDE */}
+          {/* RIGHT */}
           <div className="text-right">
             <p className="text-xs text-gray-500">Room Code</p>
 
@@ -112,9 +110,8 @@ export default function RoomPage() {
         </div>
       </div>
 
-      {/* 👥 MEMBERS OUTSIDE BOX */}
+      {/* 👥 MEMBERS */}
       <div className="mt-5 flex flex-wrap gap-3">
-
         {members.map((m) => (
           <div
             key={m.id}
@@ -135,12 +132,10 @@ export default function RoomPage() {
             {m.is_creator && <span>👑</span>}
           </div>
         ))}
-
       </div>
 
-      {/* GAME GRID */}
+      {/* 🎮 GAME GRID */}
       <div className="mt-6 grid grid-cols-2 gap-4">
-
         {games.map((game) => (
           <div
             key={game}
@@ -152,13 +147,16 @@ export default function RoomPage() {
             </p>
           </div>
         ))}
-
       </div>
 
-      {/* FOOTER */}
+      {/* 🎵 FOOTER */}
       <div className="mt-6 flex gap-4">
 
-        <button className="flex-1 py-3 rounded-2xl bg-purple-400 hover:bg-purple-500 text-white font-semibold shadow-lg">
+        {/* ✅ UPDATED: Songs button now navigates */}
+        <button
+          onClick={() => router.push(`/room/${roomId}/song`)}
+          className="flex-1 py-3 rounded-2xl bg-purple-400 hover:bg-purple-500 text-white font-semibold shadow-lg"
+        >
           🎵 Songs
         </button>
 
