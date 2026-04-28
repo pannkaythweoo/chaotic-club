@@ -95,7 +95,12 @@ export default function ChatPage() {
       .channel(`chat-${roomId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "messages", filter: `room_id=eq.${roomId}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+          filter: `room_id=eq.${roomId}`,
+        },
         () => loadMessages()
       )
       .on(
@@ -105,7 +110,9 @@ export default function ChatPage() {
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [roomId]);
 
   // SEND TEXT
@@ -205,7 +212,7 @@ export default function ChatPage() {
     const recorder = recorderRef.current;
     const stream = streamRef.current;
 
-    if (!recorder || !isRecording) return;
+    if (!recorder) return;
 
     recorder.onstop = async () => {
       const blob = new Blob(chunksRef.current, { type: "audio/webm" });
@@ -238,6 +245,7 @@ export default function ChatPage() {
 
     recorder.stop();
     stream?.getTracks().forEach((t) => t.stop());
+
     setIsRecording(false);
   };
 
@@ -299,9 +307,10 @@ export default function ChatPage() {
 
                 <p className="text-sm text-gray-700">{m.nickname}</p>
 
+                {/* ✅ FIXED TEXT COLOR HERE */}
                 {m.message && (
                   <Reactable messageId={m.id}>
-                    <p className="bg-white px-3 py-2 rounded-xl cursor-pointer">
+                    <p className="bg-white text-gray-900 px-3 py-2 rounded-xl cursor-pointer">
                       {m.message}
                     </p>
                   </Reactable>
@@ -333,14 +342,12 @@ export default function ChatPage() {
           <div ref={bottomRef} />
         </div>
 
-        {/* INPUT BAR (CLEAN UI) */}
+        {/* INPUT */}
         <div className="sticky bottom-0 p-3 border-t border-pink-200 flex gap-2 bg-white">
 
-          {/* ATTACH */}
           <button
             onClick={() => mediaRef.current?.click()}
             className="bg-white border rounded-full w-9 h-9 flex items-center justify-center text-sm"
-            title="Attach"
           >
             📎
           </button>
@@ -354,32 +361,27 @@ export default function ChatPage() {
             }}
           />
 
-          {/* VOICE START */}
           <button
             onClick={startVoice}
             disabled={isRecording}
             className="bg-white border rounded-full w-9 h-9 flex items-center justify-center text-sm"
-            title="Start Voice"
           >
             🎤
           </button>
 
-          {/* VOICE STOP */}
           <button
             onClick={stopVoice}
             disabled={!isRecording}
             className="bg-white border rounded-full w-9 h-9 flex items-center justify-center text-sm"
-            title="Stop Voice"
           >
             ⏹
           </button>
 
-          {/* INPUT */}
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Message..."
-            className="flex-1 px-3 py-2 rounded-xl border text-gray-800"
+            className="flex-1 px-3 py-2 rounded-xl border text-gray-900"
           />
 
           <button
