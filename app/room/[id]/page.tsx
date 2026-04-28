@@ -71,6 +71,10 @@ export default function RoomPage() {
     if (game === "Decision Maker") {
       router.push(`/room/${roomId}/decision`);
     }
+
+    if (game === "Group Chat") {
+      router.push(`/room/${roomId}/chat`);
+    }
   };
 
   return (
